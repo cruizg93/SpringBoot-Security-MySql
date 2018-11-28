@@ -7,6 +7,7 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import com.cristianruizblog.loginSecurity.service.UserDetailsServiceImpl;
@@ -39,8 +40,11 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter{
                 .usernameParameter("username")
                 .passwordParameter("password")
                 .and()
+            .rememberMe().key("uniqueAndSecret").tokenValiditySeconds(60).rememberMeParameter("my-remember-me")
+                .and()
             .logout()
                 .permitAll()
+                .deleteCookies("JSESSIONID")
                 .logoutSuccessUrl("/login?logout");
     }
     BCryptPasswordEncoder bCryptPasswordEncoder;
@@ -56,7 +60,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter{
     }
 	
     @Autowired
-    UserDetailsServiceImpl userDetailsService;
+    UserDetailsService userDetailsService;
 	
     //Registra el service para usuarios y el encriptador de contrasena
     @Autowired
