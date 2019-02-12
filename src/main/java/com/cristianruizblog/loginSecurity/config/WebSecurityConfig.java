@@ -1,5 +1,7 @@
 package com.cristianruizblog.loginSecurity.config;
 
+import javax.sql.DataSource;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,6 +11,8 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
+import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
 
 import com.cristianruizblog.loginSecurity.service.UserDetailsServiceImpl;
 
@@ -16,8 +20,6 @@ import com.cristianruizblog.loginSecurity.service.UserDetailsServiceImpl;
 @EnableWebSecurity
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter{
 
-	//Necesario para evitar que la seguridad se aplique a los resources
-    //Como los css, imagenes y javascripts
     String[] resources = new String[]{
             "/include/**","/css/**","/icons/**","/img/**","/js/**","/layer/**"
     };
@@ -40,34 +42,42 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter{
                 .usernameParameter("username")
                 .passwordParameter("password")
                 .and()
-            .rememberMe().key("uniqueAndSecret").tokenValiditySeconds(60).rememberMeParameter("my-remember-me")
+            .rememberMe().rememberMeParameter("my-remember-me")
+            	.tokenRepository(persistentTokenRepository())//Tell the rememberme service which repository will use to manage the token persistent
+            	.userDetailsService(userDetailsService)//IF token valid and authenticate correctly pull the user from this service.
                 .and()
             .logout()
                 .permitAll()
                 .deleteCookies("JSESSIONID")
-                .logoutSuccessUrl("/login?logout");
+                .logoutSuccessUrl("/login?logout")
+                .and()
+                .csrf().disable();
     }
+    
     BCryptPasswordEncoder bCryptPasswordEncoder;
-    //Crea el encriptador de contraseñas	
+    
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
 		bCryptPasswordEncoder = new BCryptPasswordEncoder(4);
-//El numero 4 representa que tan fuerte quieres la encriptacion.
-//Se puede en un rango entre 4 y 31. 
-//Si no pones un numero el programa utilizara uno aleatoriamente cada vez
-//que inicies la aplicacion, por lo cual tus contrasenas encriptadas no funcionaran bien
         return bCryptPasswordEncoder;
     }
 	
     @Autowired
     UserDetailsService userDetailsService;
 	
-    //Registra el service para usuarios y el encriptador de contrasena
     @Autowired
     public void configureGlobal(AuthenticationManagerBuilder auth) throws Exception { 
- 
-        // Setting Service to find User in the database.
-        // And Setting PassswordEncoder
         auth.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder());     
+    }
+
+    //need by the token repository to create, search, update and delete the persistent token from the database.
+    @Autowired
+	DataSource dataSource;
+    
+    @Bean
+	public PersistentTokenRepository persistentTokenRepository() {
+        JdbcTokenRepositoryImpl tokenRepository = new JdbcTokenRepositoryImpl();
+        tokenRepository.setDataSource(dataSource);
+        return tokenRepository;
     }
 }
